@@ -14,7 +14,26 @@ const app = express();
 
 app.use(helmet());
 app.use(morgan('dev'));
-app.use(cors({ origin: process.env.CLIENT_ORIGIN || 'http://localhost:3000', credentials: true }));
+// Support a comma-separated list in CLIENT_ORIGIN or '*' to allow all origins in dev
+const clientOrigin = process.env.CLIENT_ORIGIN || 'http://localhost:5001';
+if (clientOrigin === '*') {
+  app.use(cors({ origin: true, credentials: true }));
+} else {
+  const allowedOrigins = clientOrigin.split(',').map((s) => s.trim());
+  app.use(
+    cors({
+      origin: function (origin, callback) {
+        // allow non-browser tools (like curl/postman) that don't send origin
+        if (!origin) return callback(null, true);
+        if (allowedOrigins.indexOf(origin) !== -1) {
+          return callback(null, true);
+        }
+        return callback(new Error('Not allowed by CORS'));
+      },
+      credentials: true,
+    })
+  );
+}
 app.use(express.json());
 
 const PORT = process.env.PORT || 4000;
